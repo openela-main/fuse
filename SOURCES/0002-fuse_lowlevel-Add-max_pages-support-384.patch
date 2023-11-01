@@ -1,0 +1,130 @@
+From 5100bdc814435a1222fef6438cebcd81a3de6c73 Mon Sep 17 00:00:00 2001
+From: scosu <mpargmann@allfex.org>
+Date: Thu, 13 Jun 2019 13:59:10 +0200
+Subject: [PATCH 2/4] fuse_lowlevel: Add max_pages support (#384)
+
+Starting with kernel version 4.20 fuse supports a new property
+'max_pages' which is the maximum number of pages that can be used per
+request. This can be set via an argument during initialization.
+This new property allows writes to be larger than 128k.
+
+This patch sets the property if the matching capability is set
+(FUSE_MAX_PAGES). It will also set max_write to 1MiB. Filesystems have
+the possibility to decrease this size by setting max_write to a smaller
+size. The max_pages and bufsize fields are adjusted accordingly.
+
+Cc: Constantine Shulyupin <const@MakeLinux.com>
+Signed-off-by: Markus Pargmann <scosu@quobyte.com>
+(cherry picked from commit 027d0d17c8a4605109f09d9c988e255b64a2c19a)
+Signed-off-by: Pavel Reichl <preichl@redhat.com>
+---
+ ChangeLog.rst       |  7 +++++++
+ lib/fuse_i.h        |  6 ++++++
+ lib/fuse_lowlevel.c | 30 +++++++++++++++++++++---------
+ 3 files changed, 34 insertions(+), 9 deletions(-)
+
+diff --git a/ChangeLog.rst b/ChangeLog.rst
+index 8ea9397..411cd4a 100644
+--- a/ChangeLog.rst
++++ b/ChangeLog.rst
+@@ -1,6 +1,13 @@
+ libfuse 3.3.0 (2018-11-06)
+ ==========================
+ 
++* Added support for fuse kernel feature `max_pages` which allows to increase
++  the maximum number of pages that can be used per request. This feature was
++  introduced in kernel 4.20. `max_pages` is set based on the value in
++  `max_write`. By default `max_write` will be 1MiB now for kernels that support
++  `max_pages`. If you want smaller buffers or writes you have to set
++  `max_write` manually.
++
+ * The `auto_unmount` mode now works correctly in combination with
+   autofs.
+ 
+diff --git a/lib/fuse_i.h b/lib/fuse_i.h
+index cf35551..d38b630 100644
+--- a/lib/fuse_i.h
++++ b/lib/fuse_i.h
+@@ -131,3 +131,9 @@ struct fuse *fuse_new_31(struct fuse_args *args, const struct fuse_operations *o
+ int fuse_loop_mt_32(struct fuse *f, struct fuse_loop_config *config);
+ int fuse_session_loop_mt_32(struct fuse_session *se, struct fuse_loop_config *config);
+ 
++#define FUSE_MAX_MAX_PAGES 256
++#define FUSE_DEFAULT_MAX_PAGES_PER_REQ 32
++
++/* room needed in buffer to accommodate header */
++#define FUSE_BUFFER_HEADER_SIZE 0x1000
++
+diff --git a/lib/fuse_lowlevel.c b/lib/fuse_lowlevel.c
+index 844e797..60195e0 100644
+--- a/lib/fuse_lowlevel.c
++++ b/lib/fuse_lowlevel.c
+@@ -1882,6 +1882,14 @@ static void do_init(fuse_req_t req, fuse_ino_t nodeid, const void *inarg)
+ 			se->conn.capable |= FUSE_CAP_POSIX_ACL;
+ 		if (arg->flags & FUSE_HANDLE_KILLPRIV)
+ 			se->conn.capable |= FUSE_CAP_HANDLE_KILLPRIV;
++		if (!(arg->flags & FUSE_MAX_PAGES)) {
++			size_t max_bufsize =
++				FUSE_DEFAULT_MAX_PAGES_PER_REQ * getpagesize()
++				+ FUSE_BUFFER_HEADER_SIZE;
++			if (bufsize > max_bufsize) {
++				bufsize = max_bufsize;
++			}
++		}
+ 	} else {
+ 		se->conn.max_readahead = 0;
+ 	}
+@@ -1928,10 +1936,10 @@ static void do_init(fuse_req_t req, fuse_ino_t nodeid, const void *inarg)
+ 			bufsize);
+ 		bufsize = FUSE_MIN_READ_BUFFER;
+ 	}
++	se->bufsize = bufsize;
+ 
+-	bufsize -= 4096;
+-	if (bufsize < se->conn.max_write)
+-		se->conn.max_write = bufsize;
++	if (se->conn.max_write > bufsize - FUSE_BUFFER_HEADER_SIZE)
++		se->conn.max_write = bufsize - FUSE_BUFFER_HEADER_SIZE;
+ 
+ 	se->got_init = 1;
+ 	if (se->op.init)
+@@ -1958,6 +1966,14 @@ static void do_init(fuse_req_t req, fuse_ino_t nodeid, const void *inarg)
+ 		return;
+ 	}
+ 
++	if (se->conn.max_write < bufsize - FUSE_BUFFER_HEADER_SIZE) {
++		se->bufsize = se->conn.max_write + FUSE_BUFFER_HEADER_SIZE;
++	}
++	if (arg->flags & FUSE_MAX_PAGES) {
++		outarg.flags |= FUSE_MAX_PAGES;
++		outarg.max_pages = (se->conn.max_write - 1) / getpagesize() + 1;
++	}
++
+ 	/* Always enable big writes, this is superseded
+ 	   by the max_write option */
+ 	outarg.flags |= FUSE_BIG_WRITES;
+@@ -2779,11 +2795,6 @@ restart:
+ 	return res;
+ }
+ 
+-#define KERNEL_BUF_PAGES 32
+-
+-/* room needed in buffer to accommodate header */
+-#define HEADER_SIZE 0x1000
+-
+ struct fuse_session *fuse_session_new(struct fuse_args *args,
+ 				      const struct fuse_lowlevel_ops *op,
+ 				      size_t op_size, void *userdata)
+@@ -2844,7 +2855,8 @@ struct fuse_session *fuse_session_new(struct fuse_args *args,
+ 	if (se->debug)
+ 		fprintf(stderr, "FUSE library version: %s\n", PACKAGE_VERSION);
+ 
+-	se->bufsize = KERNEL_BUF_PAGES * getpagesize() + HEADER_SIZE;
++	se->bufsize = FUSE_MAX_MAX_PAGES * getpagesize() +
++		FUSE_BUFFER_HEADER_SIZE;
+ 
+ 	list_init_req(&se->list);
+ 	list_init_req(&se->interrupts);
+-- 
+2.36.1
+

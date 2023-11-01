@@ -1,0 +1,13 @@
+diff -up libfuse-fuse-3.0.0/lib/fuse.c.parens libfuse-fuse-3.0.0/lib/fuse.c
+--- libfuse-fuse-3.0.0/lib/fuse.c.parens	2017-03-21 09:31:31.979537796 -0400
++++ libfuse-fuse-3.0.0/lib/fuse.c	2017-03-21 09:31:42.676250718 -0400
+@@ -1653,7 +1653,7 @@ int fuse_fs_open(struct fuse_fs *fs, con
+ 			fprintf(stderr, "open flags: 0x%x %s\n", fi->flags,
+ 				path);
+ 
+-		err = fs->op.open(path, fi);
++		err = (fs->op.open)(path, fi);
+ 
+ 		if (fs->debug && !err)
+ 			fprintf(stderr, "   open[%llu] flags: 0x%x %s\n",
+diff -up libfuse-fuse-3.0.0/lib/fuse_lowlevel.c.parens libfuse-fuse-3.0.0/lib/fuse_lowlevel.c
