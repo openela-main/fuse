@@ -1,0 +1,83 @@
+From be7f19b21c84004c5a0705f040b957fd1c609e2e Mon Sep 17 00:00:00 2001
+From: =?UTF-8?q?Etienne=20Dubl=C3=A9?= <etienne.duble@imag.fr>
+Date: Sun, 20 Sep 2020 20:08:15 +0200
+Subject: [PATCH 3/4] Allow caching symlinks in kernel page cache. (#551)
+
+This commit defines a new capability called `FUSE_CAP_CACHE_SYMLINKS`.
+It is off by default but you can now enable it by setting this flag in
+in the `want` field of the `fuse_conn_info` structure.
+
+When enabled, the kernel will save symlinks in its page cache,
+by making use of the feature introduced in kernel 4.20:
+https://github.com/torvalds/linux/commit/5571f1e65486be025f73fa6aa30fb03725d362a2
+
+(cherry picked from commit ba3b225a126ebb3c6d4fe27c9f7c73aa4167001e)
+Signed-off-by: Pavel Reichl <preichl@redhat.com>
+---
+ example/printcap.c    |  2 ++
+ include/fuse_common.h | 13 +++++++++++++
+ lib/fuse_lowlevel.c   |  4 ++++
+ 3 files changed, 19 insertions(+)
+
+diff --git a/example/printcap.c b/example/printcap.c
+index 77dea14..a66036f 100644
+--- a/example/printcap.c
++++ b/example/printcap.c
+@@ -77,6 +77,8 @@ static void pc_init(void *userdata,
+ 			printf("\tFUSE_CAP_PARALLEL_DIROPS\n");
+ 	if(conn->capable & FUSE_CAP_POSIX_ACL)
+ 			printf("\tFUSE_CAP_POSIX_ACL\n");
++	if(conn->capable & FUSE_CAP_CACHE_SYMLINKS)
++			printf("\tFUSE_CAP_CACHE_SYMLINKS\n");
+ 	fuse_session_exit(se);
+ }
+ 
+diff --git a/include/fuse_common.h b/include/fuse_common.h
+index 83c9dee..a5a0ea5 100644
+--- a/include/fuse_common.h
++++ b/include/fuse_common.h
+@@ -316,6 +316,19 @@ struct fuse_loop_config {
+  */
+ #define FUSE_CAP_HANDLE_KILLPRIV         (1 << 20)
+ 
++/**
++ * Indicates that the kernel supports caching symlinks in its page cache.
++ *
++ * When this feature is enabled, symlink targets are saved in the page cache.
++ * You can invalidate a cached link by calling:
++ * `fuse_lowlevel_notify_inval_inode(se, ino, 0, 0);`
++ *
++ * This feature is disabled by default.
++ * If the kernel supports it (>= 4.20), you can enable this feature by
++ * setting this flag in the `want` field of the `fuse_conn_info` structure.
++ */
++#define FUSE_CAP_CACHE_SYMLINKS        (1 << 23)
++
+ /**
+  * Ioctl flags
+  *
+diff --git a/lib/fuse_lowlevel.c b/lib/fuse_lowlevel.c
+index 60195e0..43f785f 100644
+--- a/lib/fuse_lowlevel.c
++++ b/lib/fuse_lowlevel.c
+@@ -1882,6 +1882,8 @@ static void do_init(fuse_req_t req, fuse_ino_t nodeid, const void *inarg)
+ 			se->conn.capable |= FUSE_CAP_POSIX_ACL;
+ 		if (arg->flags & FUSE_HANDLE_KILLPRIV)
+ 			se->conn.capable |= FUSE_CAP_HANDLE_KILLPRIV;
++		if (arg->flags & FUSE_CACHE_SYMLINKS)
++			se->conn.capable |= FUSE_CAP_CACHE_SYMLINKS;
+ 		if (!(arg->flags & FUSE_MAX_PAGES)) {
+ 			size_t max_bufsize =
+ 				FUSE_DEFAULT_MAX_PAGES_PER_REQ * getpagesize()
+@@ -2002,6 +2004,8 @@ static void do_init(fuse_req_t req, fuse_ino_t nodeid, const void *inarg)
+ 		outarg.flags |= FUSE_WRITEBACK_CACHE;
+ 	if (se->conn.want & FUSE_CAP_POSIX_ACL)
+ 		outarg.flags |= FUSE_POSIX_ACL;
++	if (se->conn.want & FUSE_CAP_CACHE_SYMLINKS)
++		outarg.flags |= FUSE_CACHE_SYMLINKS;
+ 	outarg.max_readahead = se->conn.max_readahead;
+ 	outarg.max_write = se->conn.max_write;
+ 	if (se->conn.proto_minor >= 13) {
+-- 
+2.36.1
+
