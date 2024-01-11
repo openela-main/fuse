@@ -1,0 +1,11 @@
+--- libfuse-fuse-3.3.0/test/test_syscalls.c.orig	2018-11-06 19:57:47.000000000 +0100
++++ libfuse-fuse-3.3.0/test/test_syscalls.c	2022-02-07 17:17:47.512515240 +0100
+@@ -1511,7 +1511,7 @@
+ 
+ 	errno = 0;
+ 	res = rename(PATH("a/b"), PATH2("a/d"));
+-	if (res == 0 || errno != ENOTEMPTY) {
++	if (res == 0 || (errno != ENOTEMPTY && errno != EEXIST)) {
+ 		PERROR("rename");
+ 		goto fail;
+ 	}
