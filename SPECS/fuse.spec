@@ -4,7 +4,7 @@
 
 Name:		fuse
 Version:	%{fuse2ver}
-Release:	16%{?dist}
+Release:	17%{?dist}
 Summary:	File System in Userspace (FUSE) v2 utilities
 License:	GPL+
 URL:		http://fuse.sf.net
@@ -26,6 +26,10 @@ Patch8:		0001-Synchronize-fuse_kernel.h.patch
 Patch9:		0002-fuse_lowlevel-Add-max_pages-support-384.patch
 Patch10:	0003-Allow-caching-symlinks-in-kernel-page-cache.-551.patch
 Patch11:	0004-Add-support-for-in-kernel-readdir-caching.patch
+Patch12:	0005-BZ_217095_Modify-structures-in-libfuse-to-handle-flags-beyond-rhel-8.patch
+Patch13:	0006-BZ_2171095.patch
+Patch14:	0007-BZ_2171095-cap.patch
+Patch15:	0008-BZ_217095-libfuse-add-feature-flag-for-expire-only.patch
 
 Requires:	which
 Conflicts:	filesystem < 3
@@ -120,6 +124,10 @@ pushd lib%{name}-%{name}-%{fuse3ver}
 %patch9 -p1
 %patch10 -p1
 %patch11 -p1
+%patch12 -p1
+%patch13 -p1
+%patch14 -p1
+%patch15 -p1
 
 popd
 
@@ -251,6 +259,10 @@ rm -f %{buildroot}/usr/lib/udev/rules.d/99-fuse3.rules
 %{_includedir}/fuse3/
 
 %changelog
+* Thu Mar 23 2023 Pavel Reichl <preichl@redhat.com> - 2.9.7-17
+- Add feature_notify_inode_expire_only
+- Fixes rhbz#2171095
+
 * Mon May 30 2022 Pavel Reichl <preichl@redhat.com> - 2.9.7-16
 - Back-port max_pages support,
 - caching symlinks in kernel page cache,
