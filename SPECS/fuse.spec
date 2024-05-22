@@ -4,7 +4,7 @@
 
 Name:		fuse
 Version:	%{fuse2ver}
-Release:	17%{?dist}
+Release:	19%{?dist}
 Summary:	File System in Userspace (FUSE) v2 utilities
 License:	GPL+
 URL:		http://fuse.sf.net
@@ -30,6 +30,9 @@ Patch12:	0005-BZ_217095_Modify-structures-in-libfuse-to-handle-flags-beyond-rhel
 Patch13:	0006-BZ_2171095.patch
 Patch14:	0007-BZ_2171095-cap.patch
 Patch15:	0008-BZ_217095-libfuse-add-feature-flag-for-expire-only.patch
+Patch16:	fuse-3.17.0-Pass-FUSE_PARALLEL_DIROPS-to-kernel-861.patch
+Patch17:	fuse-3.17.0-Don-t-set-FUSE_CAP_PARALLEL_DIROPS-by-default.patch
+Patch18:	0009-Make-expire-only-function-fail-if-no-kernel-support-.patch
 
 Requires:	which
 Conflicts:	filesystem < 3
@@ -128,6 +131,9 @@ pushd lib%{name}-%{name}-%{fuse3ver}
 %patch13 -p1
 %patch14 -p1
 %patch15 -p1
+%patch16 -p1
+%patch17 -p1
+%patch18 -p1
 
 popd
 
@@ -259,6 +265,14 @@ rm -f %{buildroot}/usr/lib/udev/rules.d/99-fuse3.rules
 %{_includedir}/fuse3/
 
 %changelog
+* Tue Feb 06 2024 Pavel Reichl <preichl@redhat.com> - 2.9.7-19
+- Synchronize expire-only API with upstream.
+- Related: RHEL-23415
+
+* Fri Feb 02 2024 Pavel Reichl <preichl@redhat.com> - 2.9.7-18
+- Advertise support of FUSE_PARALLEL_DIROPS to kernel
+- Fixes RHEL-19149
+
 * Thu Mar 23 2023 Pavel Reichl <preichl@redhat.com> - 2.9.7-17
 - Add feature_notify_inode_expire_only
 - Fixes rhbz#2171095

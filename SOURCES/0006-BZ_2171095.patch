@@ -111,7 +111,7 @@ index 7e50e7507..795ea4aa9 100644
  FUSE_3.3 {
  	global:
  		fuse_open_channel;
-+		fuse_lowlevel_notify_expire_entr;
++		fuse_lowlevel_notify_expire_entry;
  } FUSE_3.2;
  
  # Local Variables:
