@@ -1,6 +1,6 @@
 Name:		fuse
 Version:	2.9.9
-Release:	15%{?dist}
+Release:	16%{?dist}
 Summary:	File System in Userspace (FUSE) v2 utilities
 License:	GPL+
 URL:		http://fuse.sf.net
@@ -20,6 +20,7 @@ Patch4: fuse2-0004-Whitelist-SMB2-found-on-some-NAS-devices.patch
 # https://github.com/libfuse/libfuse/pull/619
 # https://github.com/libfuse/libfuse/commit/ae2352bca9b4e607538412da0cc2a9625cd8b692.patch
 Patch5: fuse2-0005-remove-closefrom-function.patch
+Patch6: fuse2-0006-master-libfuse-null-terminate-buffer-in-fuse_req_getgroups.patch
 
 # Default to *do* run autoreconf, because in case any downstream patch touched
 # configure.ac or Makefile.am it may be necessary to do so - e.g Patch #5.
@@ -70,6 +71,7 @@ sed -i 's|mknod|echo Disabled: mknod |g' util/Makefile.in
 %patch3 -p1 -b .buffer_size
 %patch4 -p1 -b .smb2_whitelist
 %patch5 -p1 -b .remove_closefrom
+%patch6 -p1 -b .fix_null_terminate
 
 %build
 %if 0%{?enable_autotools}
@@ -135,6 +137,9 @@ rm -f %{buildroot}/%{_libdir}/*.a
 %{_includedir}/fuse
 
 %changelog
+* Fri Jun 14 2024 Pavel Reichl <preichl@redhat.com> - 2.9.9-16
+- null-terminate buffer in fuse_req_getgroups()
+
 * Tue Dec 07 2021 Pavel Reichl <preichl@redhat.com> - 2.9.9-15
 - Add gating.yaml file
 
