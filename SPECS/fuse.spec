@@ -1,6 +1,6 @@
 Name:		fuse
 Version:	2.9.9
-Release:	16%{?dist}
+Release:	17%{?dist}
 Summary:	File System in Userspace (FUSE) v2 utilities
 License:	GPL+
 URL:		http://fuse.sf.net
@@ -137,6 +137,10 @@ rm -f %{buildroot}/%{_libdir}/*.a
 %{_includedir}/fuse
 
 %changelog
+* Mon Dec 02 2024 Pavel Reichl <preichl@redhat.com>
+- Bump release to test gating
+  Related: RHEL-69609
+
 * Fri Jun 14 2024 Pavel Reichl <preichl@redhat.com> - 2.9.9-16
 - null-terminate buffer in fuse_req_getgroups()
 
